@@ -1,7 +1,6 @@
 from pyrogram import Client, filters
 from pyrogram.errors import FloodWait
 
-import time
 from time import sleep
 
 from PIL import Image as PImage
@@ -14,6 +13,7 @@ from wand.drawing import Drawing
 from wand.compat import nested
 
 import math
+import sys
 
 LETTER_MAPPING = {
     'а': 'а',
@@ -77,6 +77,7 @@ LETTER_MAPPING = {
     'y': 'y',
     'z': 'z',
 
+    '0': '0',
     '1': '1',
     '2': '2',
     '3': '3',
@@ -86,41 +87,63 @@ LETTER_MAPPING = {
     '7': '7',
     '8': '8',
     '9': '9',
-    '0': '0',
 
-    ' ': 'spc',
-    '.': 'dot',
-    ',': 'com',
+    ' ': '_space',
+    '.': '_dot',
+    ',': '_comma',
     '!': '!',
     '?': '?',
     ':': ':',
     ';': ';',
     '(': '(',
     ')': ')',
+    '[': '[',
+    ']': ']',
+    '{': '{',
+    '}': '}',
+    '_': '_underscore',
     '-': '-',
+    '+': '+',
+    '=': '=',
+    '<': '<',
+    '>': '>',
+    '*': '*',
+    '/': '_divide',
+    '&': '&',
+    '^': '^',
+    '%': '%',
+    '$': '$',
+    '#': '#',
+    '@': '@',
+    '~': '_tilda',
+    '|': '|',
+    '\\': '_backslash',
+    '\'': '_quote',
+    '"': '_doublequote',
 }
+
+NIL = '_nil'
 
 DIR_FONT_FUNPICS_TRANSPARENT = 'letters_funpics_transparent'
 DIR_FONT_FUNPICS = 'letters_funpics'
-NIL = 'nil'
-
-LETTERS_HANDMADE = 'абвгдеёжзиклмнопрстуфхцчшщъыьэбя '
+LETTERS_FUNPICS = 'абвгдеёжзийклмнопрстуфхцчшщъыьэюяabcdefghijklmnopqrstuvwxyz0123456789 .,!?:;()-'
 
 FONTS_IMAGES = {}
-
 for font_dir in [DIR_FONT_FUNPICS_TRANSPARENT, DIR_FONT_FUNPICS]:
     FONTS_IMAGES[font_dir] = {
         letter: PImage.open(f'{font_dir}/{LETTER_MAPPING[letter]}.png')
-        for letter in LETTER_MAPPING
+        for letter in LETTERS_FUNPICS
     }
-    FONTS_IMAGES[font_dir][NIL] = PImage.open(f'{font_dir}/nil.png')
+    FONTS_IMAGES[font_dir][NIL] = PImage.open(f'{font_dir}/{NIL}.png')
 
-DIR_FONT_HANDMADE = 'letters'
+DIR_FONT_HANDMADE = 'letters_simple'
+LETTERS_HANDMADE = 'абвгдеёжзийклмнопрстуфхцчшщъыьэюя0123456789 .,!?:;()[]\{\}-_+=<>*/&^%$#@~|\\\'"'
+
 FONT_HANDMADE = {
     letter: PImage.open(f'{DIR_FONT_HANDMADE}/{LETTER_MAPPING[letter]}.png')
     for letter in LETTERS_HANDMADE
 }
-FONT_HANDMADE[NIL] = PImage.open(f'{DIR_FONT_HANDMADE}/nil.png')
+FONT_HANDMADE[NIL] = PImage.open(f'{DIR_FONT_HANDMADE}/{NIL}.png')
 
 ROW_SIZE = 16
 
@@ -185,7 +208,7 @@ def print_sticker(msg, text, font_images):
             sent = True
 
         except FloodWait as e:
-            print(f'FloodWait. Sleeping {e.x}...')
+            print(f'FloodWait. Sleeping {e.x}...', file=sys.stderr)
             sleep(e.x)
 
 
@@ -225,8 +248,6 @@ def word_wrap(image, ctx, text, roi_width, roi_height, font_size):
         attempts -= 1
         width, height = eval_metrics(mutable_message)
 
-        # print(width, height, 'roi:  ', roi_width, roi_height)
-
         if height > roi_height:
             font_size *= 0.96
             shrink_text()
@@ -259,7 +280,7 @@ def word_wrap(image, ctx, text, roi_width, roi_height, font_size):
     if attempts < 1:
         raise RuntimeError('Unable to calculate word_wrap for "', text, '" in ', WRAP_ATTEMPTS, 'attempts.')
 
-    print(f'Attempts: {WRAP_ATTEMPTS - attempts}/{WRAP_ATTEMPTS}. Font size: {ctx.font_size}.')
+    print(f'Attempts: {WRAP_ATTEMPTS - attempts}/{WRAP_ATTEMPTS}. Font size: {ctx.font_size}.', file=sys.stderr)
 
     return mutable_message, ctx.font_size
 
@@ -277,7 +298,7 @@ def print_sticker_font(msg, text, font_name):
                 twenty_percent = int(65535 * 0.05)  # Note: percent must be calculated from Quantum
                 img.transparent_color(white, alpha=0.0, fuzz=twenty_percent)
 
-            draw.font_family = FONT_MAPPING[font_name] # FONT_MAPPING[font_name]
+            draw.font_family = FONT_MAPPING[font_name]
             draw.font_size = FONT_SIZE
             draw.push()
             draw.font_weight = 700
@@ -288,7 +309,7 @@ def print_sticker_font(msg, text, font_name):
                 img, draw, text,
                 WIDTH, HEIGHT, FONT_SIZE,
             )
-            print(mutable_message)
+            print(mutable_message, '\n', file=sys.stderr)
             draw.text(0, math.ceil(font_size), mutable_message)
 
             draw.pop()
@@ -316,27 +337,27 @@ def print_sticker_font(msg, text, font_name):
             sleep(e.x)
 
 
-@app.on_message(filters.command("font-fun", prefixes=".") & filters.me)
+@app.on_message(filters.command("fun", prefixes=".") & filters.me)
 def print_font(_, msg):
-    text = msg.text.lower().split(".font-fun ", maxsplit=1)[1]
+    text = msg.text.lower().split(".fun ", maxsplit=1)[1]
     print_sticker(msg, text, FONTS_IMAGES[DIR_FONT_FUNPICS])
 
 
-@app.on_message(filters.command("font-fun-tp", prefixes=".") & filters.me)
+@app.on_message(filters.command("fun-tp", prefixes=".") & filters.me)
 def print_font_transparent(_, msg):
-    text = msg.text.lower().split(".font-fun-tp ", maxsplit=1)[1]
+    text = msg.text.lower().split(".fun-tp ", maxsplit=1)[1]
     print_sticker(msg, text, FONTS_IMAGES[DIR_FONT_FUNPICS_TRANSPARENT])
 
 
-@app.on_message(filters.command("font-simple", prefixes=".") & filters.me)
+@app.on_message(filters.command("simple", prefixes=".") & filters.me)
 def print_font_transparent(_, msg):
-    text = msg.text.lower().split(".font-simple ", maxsplit=1)[1]
+    text = msg.text.lower().split(".simple ", maxsplit=1)[1]
     print_sticker(msg, text, FONT_HANDMADE)
 
 
-@app.on_message(filters.command("font-custom", prefixes=".") & filters.me)
+@app.on_message(filters.command("custom", prefixes=".") & filters.me)
 def print_font_transparent(_, msg):
-    prefix = ".font-custom "
+    prefix = ".custom "
     font_name, text = msg.text[len(prefix):].split(" ", maxsplit=1)
 
     print_sticker_font(msg, text, font_name)
